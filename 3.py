@@ -6,22 +6,24 @@ from random import choice as pick
 import math
 
 class Star:
-        def __init__(self,rect,speedX,speedY,justMoved):
-                self.speedX = speedX
-                self.speedY = speedY
+        def __init__(self,rect):
+                self.speedX = roll(1,6)
+                self.speedY = roll(1,6)
                 self.rect = rect
-                self.justMoved = justMoved
+                self.justMoved = False
 
 class Comet:
         def __init__(self):
                 global cometColors
                 self.tailList = []
                 self.colorList = pick(cometColors)
-                self.curveFactor = 0 + rollFloat(-1.2,1.6)
-                self.moveFactor = 0.8 + rollFloat(-0.7,1.6)
+                self.curveFactor = 0 + rollFloat(-2,2)
+                self.moveFactor = 1 + roll(0,5)
                 self.initialY = roll(90,resolutionY-90)
                 self.size = roll(10,32)
                 self.rect = pygame.Rect(resolutionX-10,self.initialY,self.size,self.size)
+                self.frameDelay = roll(0,2)
+                self.frameCounter = self.frameDelay
 
 
 # pygame internal stuff
@@ -62,9 +64,9 @@ def createAStar():
         #if starTimer % 1 == 0 and len(starList) <= 10000:
         if len(starList) <= 750:
                 if starTimer % 2 == 0 and roll(0,2) == 2:
-                        starList.append(Star(pygame.Rect(resolutionX-10,roll(10,resolutionY-1),1,1),roll(1,3),roll(1,3),False))
+                        starList.append(Star(pygame.Rect(resolutionX-10,roll(10,resolutionY-1),1,1)))
                 elif roll(0,3)==3:
-                        starList.append(Star(pygame.Rect(resolutionX-10,roll(10,resolutionY-1),2,2),roll(1,3),roll(1,3),False))
+                        starList.append(Star(pygame.Rect(resolutionX-10,roll(10,resolutionY-1),2,2)))
 
 def drawBackground():
         global window
@@ -155,17 +157,22 @@ def cometMove():
         global cometList
         global cometTimer
         for i in range(0,len(cometList)):
-                cometList[i].rect.centerx = cometList[i].rect.centerx - cometList[i].moveFactor
-                cometList[i].rect.centery = cometList[i].initialY + (math.sin(cometTimer)*cometList[i].curveFactor*100)
+                if cometList[i].frameCounter == 0:
+                        cometList[i].rect.centerx = cometList[i].rect.centerx - cometList[i].moveFactor
+                        cometList[i].rect.centery = cometList[i].initialY + (math.sin(cometTimer)*cometList[i].curveFactor*100)
+                        cometList[i].frameCounter = cometList[i].frameDelay
+                else:
+                        cometList[i].frameCounter -= 1
 
 def cometTailMove():
         global cometList
         for i in range(0,len(cometList)):
-                cometX, cometY = cometList[i].rect.centerx, cometList[i].rect.centery
-                for j in cometList[i].tailList:
-                        currentIndex = cometList[i].tailList.index(j)
-                        cometList[i].tailList[currentIndex].centerx = cometX+(currentIndex*8+(cometList[i].moveFactor*currentIndex))
-                        cometList[i].tailList[currentIndex].centery = cometList[i].initialY+(math.sin(cometTimer-(0.01*currentIndex))*cometList[i].curveFactor*100)
+                if cometList[i].frameCounter == 0:
+                        cometX, cometY = cometList[i].rect.centerx, cometList[i].rect.centery
+                        for j in cometList[i].tailList:
+                                currentIndex = cometList[i].tailList.index(j)
+                                cometList[i].tailList[currentIndex].centerx = cometX+(currentIndex*8+(cometList[i].moveFactor*currentIndex))
+                                cometList[i].tailList[currentIndex].centery = cometList[i].initialY+(math.sin(cometTimer-(0.01*currentIndex))*cometList[i].curveFactor*100)
 
 def drawComet():
         global cometList
@@ -214,9 +221,17 @@ while not dying:
                                         debug = False
                                 else:
                                         debug = True
-                        #force spawn a comet next frame
+                        #force spawn a comet immediately
                         if event.key == pygame.K_INSERT:
-                                spawnComet = True
+                                throwComet()
+                        #force spawn 50 comets immediately
+                        if event.key == pygame.K_HOME:
+                                for i in range(0,51):
+                                        throwComet()
+                        #force spawn 500 comets immediately
+                        if event.key == pygame.K_END:
+                                for i in range(0,501):
+                                        throwComet()
                         #control comet timer - granular
                         if event.key == pygame.K_KP7:
                                 cometTimerFactor += 0.01
@@ -255,9 +270,8 @@ while not dying:
         #conditional logic
         if weirdStarMovement:
                 updateStarMovement()
-        if roll(0,cometChance) == 0 or spawnComet == True:
+        if not roll(0,cometChance):
                 throwComet()
-                spawnComet = False
         if len(cometList) != 0:
                 cometMove()
                 cometTailMove()
